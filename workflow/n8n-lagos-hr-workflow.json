@@ -1,0 +1,405 @@
+{
+  "name": "n8n Lagos — AI-Assisted Recruitment Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\nconst required = ['full_name', 'email', 'years_experience', 'skills', 'resume_text'];\nconst missing = required.filter((key) => input[key] === undefined || input[key] === null || String(input[key]).trim() === '');\nif (missing.length) throw new Error(`Missing required fields: ${missing.join(', ')}`);\n\nconst hasConsent =\n  input.consent === true ||\n  String(input.consent).toLowerCase() === 'true' ||\n  String(input.consent).toLowerCase() === 'on';\nif (!hasConsent) throw new Error('Consent is required');\n\nconst email = String(input.email).trim().toLowerCase();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error('Invalid email address');\nconst years = Number(input.years_experience);\nif (!Number.isFinite(years) || years < 0 || years > 50) throw new Error('Invalid years of experience');\n\nreturn [{ json: {\n  application_id: $execution.id,\n  full_name: String(input.full_name).trim().slice(0, 100),\n  email,\n  years_experience: years,\n  skills: String(input.skills).trim().slice(0, 1200),\n  resume_text: String(input.resume_text).trim().slice(0, 6000),\n  consent: true,\n  role_title: 'People Operations Analyst',\n  source: String(input.source ?? 'website'),\n  submitted_at: String(input.submitted_at ?? new Date().toISOString()),\n  must_have_criteria: [\n    'At least 2 years in HR operations, people analytics, or HRIS support',\n    'Spreadsheet or data analysis experience',\n    'Evidence of process documentation or workflow improvement',\n    'Clear written stakeholder communication',\n    'Care with confidential employee information and sound judgment about data access'\n  ],\n  nice_to_have_criteria: [\n    'HRIS or ATS administration',\n    'Workflow automation exposure',\n    'Dashboard or reporting experience'\n  ]\n} }];"
+      },
+      "id": "8b029e56-7257-4f11-ac32-fe07f628f776",
+      "name": "Validate Application",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ROLE: {{ $json.role_title }}\n\nMUST-HAVE CRITERIA:\n{{ $json.must_have_criteria.join('\\n- ') }}\n\nNICE-TO-HAVE CRITERIA:\n{{ $json.nice_to_have_criteria.join('\\n- ') }}\n\nCANDIDATE-PROVIDED INFORMATION:\nYears of relevant experience: {{ $json.years_experience }}\nSkills: {{ $json.skills }}\nProfessional summary: {{ $json.resume_text }}\n\nAssess the evidence against the supplied criteria. The score is only a compact evidence summary, not a hiring decision. Use one recommendation: ADVANCE, REVIEW, or DO_NOT_ADVANCE. Give concise evidence and gaps plus three job-related interview questions.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "1b7d1544-527e-4410-aba0-9af272188cfd",
+      "name": "Assess Candidate",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        496,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-sol",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-sol",
+          "cachedResultUrl": ""
+        },
+        "options": {
+          "temperature": 1
+        }
+      },
+      "id": "2e2728cb-18a2-46ff-a780-d77a22d6d87c",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"score\": 72,\n  \"recommendation\": \"REVIEW\",\n  \"summary\": \"Evidence aligns with most core criteria; HRIS depth needs validation.\",\n  \"evidence\": [\"Three years supporting HR operations\", \"Built spreadsheet-based workforce reports\"],\n  \"gaps\": [\"Direct ATS administration is not evidenced\"],\n  \"interview_questions\": [\"Describe a people-process improvement you owned.\", \"How did you verify the accuracy of an HR report?\", \"What HRIS or ATS tasks have you performed directly?\"]\n}"
+      },
+      "id": "986de6a7-df82-41c3-acbc-61f8751b1592",
+      "name": "Structured Assessment",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const value = $json.output ?? $json;\nconst allowed = ['ADVANCE', 'REVIEW', 'DO_NOT_ADVANCE'];\nconst numericScore = Number(value.score);\nconst score = Number.isFinite(numericScore) ? Math.max(0, Math.min(100, Math.round(numericScore))) : null;\nlet recommendation = allowed.includes(value.recommendation) ? value.recommendation : 'REVIEW';\nif (score === null || !Array.isArray(value.evidence) || value.evidence.length === 0) recommendation = 'REVIEW';\nreturn [{ json: {\n  assessment: {\n    score,\n    recommendation,\n    summary: String(value.summary ?? 'No summary returned'),\n    evidence: Array.isArray(value.evidence) ? value.evidence.slice(0, 6) : [],\n    gaps: Array.isArray(value.gaps) ? value.gaps.slice(0, 6) : ['Assessment incomplete'],\n    interview_questions: Array.isArray(value.interview_questions) ? value.interview_questions.slice(0, 3) : []\n  }\n} }];"
+      },
+      "id": "d2df2ae8-967c-4675-a761-b65ba4d3f0cf",
+      "name": "Validate Assessment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "REPLACE_WITH_RECRUITER_EMAIL",
+        "subject": "=Review: {{ $('Validate Application').item.json.full_name }} — {{ $json.assessment.score }}/100",
+        "message": "=<div style=\"width:100%;max-width:680px;margin:0 auto;text-align:left;font-family:Arial,sans-serif;color:#14201d;line-height:1.5;\">\n  <div style=\"border:1px solid #dfe7e3;border-radius:12px;overflow:hidden;background:#ffffff;\">\n    <div style=\"padding:18px 24px;background:#0b3b31;color:#ffffff;\">\n      <div style=\"font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;\">Candidate review</div>\n      <div style=\"font-size:21px;font-weight:700;margin-top:4px;\">{{ String($('Validate Application').item.json.full_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }}</div>\n    </div>\n    <div style=\"padding:22px 24px;\">\n      <table role=\"presentation\" style=\"width:100%;border-collapse:collapse;font-size:15px;margin-bottom:22px;\">\n        <tr><td style=\"padding:7px 12px 7px 0;color:#64716c;width:145px;\">Role</td><td style=\"padding:7px 0;font-weight:600;\">{{ String($('Validate Application').item.json.role_title).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }}</td></tr>\n        <tr><td style=\"padding:7px 12px 7px 0;color:#64716c;\">AI recommendation</td><td style=\"padding:7px 0;font-weight:700;color:#0b6b58;\">{{ String($json.assessment.recommendation).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}</td></tr>\n        <tr><td style=\"padding:7px 12px 7px 0;color:#64716c;\">Evidence score</td><td style=\"padding:7px 0;font-weight:700;\">{{ $json.assessment.score }}/100</td></tr>\n      </table>\n      <h3 style=\"font-size:15px;margin:0 0 8px;color:#0b3b31;\">Summary</h3>\n      <p style=\"margin:0 0 22px;\">{{ String($json.assessment.summary).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}</p>\n      <h3 style=\"font-size:15px;margin:0 0 8px;color:#0b3b31;\">Evidence</h3>\n      <ul style=\"margin:0 0 22px;padding-left:20px;\"><li style=\"margin-bottom:8px;\">{{ $json.assessment.evidence.map(v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('</li><li style=\"margin-bottom:8px;\">') }}</li></ul>\n      <h3 style=\"font-size:15px;margin:0 0 8px;color:#0b3b31;\">Gaps to validate</h3>\n      <ul style=\"margin:0 0 22px;padding-left:20px;\"><li style=\"margin-bottom:8px;\">{{ $json.assessment.gaps.map(v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('</li><li style=\"margin-bottom:8px;\">') }}</li></ul>\n      <h3 style=\"font-size:15px;margin:0 0 8px;color:#0b3b31;\">Suggested interview questions</h3>\n      <ol style=\"margin:0 0 22px;padding-left:22px;\"><li style=\"margin-bottom:8px;\">{{ $json.assessment.interview_questions.map(v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('</li><li style=\"margin-bottom:8px;\">') }}</li></ol>\n      <div style=\"padding:12px 14px;background:#f4f7f6;border-left:4px solid #0b6b58;font-size:13px;color:#46534e;\">\n        This AI assessment is advisory. Review the candidate-provided information before making the final decision.\n      </div>\n    </div>\n  </div>\n</div>",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Invite to interview",
+            "disapproveLabel": "Do not advance",
+            "buttonApprovalStyle": "primary",
+            "buttonDisapprovalStyle": "secondary"
+          }
+        },
+        "options": {
+          "appendAttribution": false,
+          "messageButtonLabel": "Review application",
+          "responseFormTitle": "Candidate review",
+          "responseFormDescription": "Review the evidence summary and choose the appropriate next step."
+        }
+      },
+      "id": "8d5e82a4-2622-459c-8004-e2c9b2c7f731",
+      "name": "Recruiter Approval",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e4a4be07-b0cb-4ed1-a415-54719e1f87be",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1aa6e15a-5c6a-4e5f-a967-98ac9d84abca",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Application').item.json.email }}",
+        "subject": "Next step for your People Operations Analyst application",
+        "message": "=<div style=\"margin:0;padding:24px;background:#f4f7f6;font-family:Arial,sans-serif;color:#14201d;\">\n  <div style=\"max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe7e3;border-radius:12px;overflow:hidden;\">\n    <div style=\"padding:20px 28px;background:#0b3b31;color:#ffffff;font-size:20px;font-weight:700;\">n8n Lagos</div>\n    <div style=\"padding:28px;line-height:1.6;font-size:16px;\">\n      <p style=\"margin:0 0 18px;\">Hello {{ String($('Validate Application').item.json.full_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }},</p>\n      <p style=\"margin:0 0 18px;\">Thank you for your application for the <strong>People Operations Analyst</strong> role.</p>\n      <p style=\"margin:0 0 18px;\">We would like to invite you to a first-round interview. A member of the People team will follow up with scheduling options.</p>\n      <p style=\"margin:28px 0 0;\">Regards,<br><strong>n8n Lagos People Team</strong></p>\n    </div>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailType": "html"
+      },
+      "id": "b8d5fff0-2ae7-47e8-aee2-703c7730a89d",
+      "name": "Send Interview Invite",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Application').item.json.email }}",
+        "subject": "Update on your People Operations Analyst application",
+        "message": "=<div style=\"margin:0;padding:24px;background:#f4f7f6;font-family:Arial,sans-serif;color:#14201d;\">\n  <div style=\"max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe7e3;border-radius:12px;overflow:hidden;\">\n    <div style=\"padding:20px 28px;background:#0b3b31;color:#ffffff;font-size:20px;font-weight:700;\">n8n Lagos</div>\n    <div style=\"padding:28px;line-height:1.6;font-size:16px;\">\n      <p style=\"margin:0 0 18px;\">Hello {{ String($('Validate Application').item.json.full_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }},</p>\n      <p style=\"margin:0 0 18px;\">Thank you for the time you invested in applying for the <strong>People Operations Analyst</strong> role.</p>\n      <p style=\"margin:0 0 18px;\">After careful review, we will not be progressing your application at this time.</p>\n      <p style=\"margin:0 0 18px;\">We appreciate your interest in n8n Lagos and wish you every success in your job search.</p>\n      <p style=\"margin:28px 0 0;\">Regards,<br><strong>n8n Lagos People Team</strong></p>\n    </div>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        },
+        "emailType": "html"
+      },
+      "id": "b198f21a-2c5c-4b31-949d-5b281a140f17",
+      "name": "Send Status Update",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const application = $('Validate Application').item.json;\nconst assessment = $('Validate Assessment').item.json.assessment;\nconst approval = $('Recruiter Approval').item.json;\nreturn [{ json: { application_id: application.application_id, candidate_name: application.full_name, candidate_email: application.email, role: application.role_title, ai_score: assessment.score, ai_recommendation: assessment.recommendation, human_decision: 'INVITE', responded_at: approval.respondedAt ?? new Date().toISOString(), workflow_execution_id: $execution.id } }];"
+      },
+      "id": "04685fba-dc15-4b4f-bbdd-79c331893b42",
+      "name": "Audit Invite Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const application = $('Validate Application').item.json;\nconst assessment = $('Validate Assessment').item.json.assessment;\nconst approval = $('Recruiter Approval').item.json;\nreturn [{ json: { application_id: application.application_id, candidate_name: application.full_name, candidate_email: application.email, role: application.role_title, ai_score: assessment.score, ai_recommendation: assessment.recommendation, human_decision: 'DO_NOT_ADVANCE', responded_at: approval.respondedAt ?? new Date().toISOString(), workflow_execution_id: $execution.id } }];"
+      },
+      "id": "3ca36ca4-ae0c-4a82-bb72-295b6080275a",
+      "name": "Audit Decline Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1 · Website trigger\nThe careers page sends a multipart POST request here. The webhook responds immediately so the browser does not wait for AI or recruiter approval.\n\nAfter importing, publish the workflow and copy the **Production URL** into the frontend configuration.",
+        "height": 250,
+        "width": 430,
+        "color": 5
+      },
+      "id": "beec21ac-0dd5-4550-8c94-99b484ae1343",
+      "name": "Setup — Webhook",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2 · Credentials\nSelect your own OpenAI credential in **OpenAI Chat Model**. Select your own Gmail credential in all three Gmail nodes.\n\nReplace `REPLACE_WITH_RECRUITER_EMAIL` in Recruiter Approval with your presenter inbox. Credentials are intentionally not included in this template.",
+        "height": 250,
+        "width": 430,
+        "color": 3
+      },
+      "id": "184ef5cd-ea7e-4594-8ec8-00ca9a2baea7",
+      "name": "Setup — Credentials",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        752,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3 · Decision record\nThe final Code nodes produce an audit record visible in the execution. For durable production storage, add a Data Table Insert Row node after each audit node and map these output fields.",
+        "height": 230,
+        "width": 420,
+        "color": 4
+      },
+      "id": "627ae79e-09ee-44b0-90ac-f84e6dbf4aab",
+      "name": "Setup — Audit",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n-lagos-careers-application",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        272
+      ],
+      "id": "9bcaeef7-1798-4725-a880-9a064aabd0d7",
+      "name": "Webhook"
+    }
+  ],
+  "connections": {
+    "Validate Application": {
+      "main": [
+        [
+          {
+            "node": "Assess Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Assess Candidate",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Assessment": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Assess Candidate",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assess Candidate": {
+      "main": [
+        [
+          {
+            "node": "Validate Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Assessment": {
+      "main": [
+        [
+          {
+            "node": "Recruiter Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recruiter Approval": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Send Interview Invite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Interview Invite": {
+      "main": [
+        [
+          {
+            "node": "Audit Invite Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Status Update": {
+      "main": [
+        [
+          {
+            "node": "Audit Decline Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
