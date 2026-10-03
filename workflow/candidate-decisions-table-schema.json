@@ -1,0 +1,33 @@
+{
+  "name": "candidate_decisions",
+  "columns": [
+    {
+      "name": "application_id",
+      "type": "string"
+    },
+    {
+      "name": "role",
+      "type": "string"
+    },
+    {
+      "name": "ai_score",
+      "type": "number"
+    },
+    {
+      "name": "ai_recommendation",
+      "type": "string"
+    },
+    {
+      "name": "human_decision",
+      "type": "string"
+    },
+    {
+      "name": "responded_at",
+      "type": "date"
+    },
+    {
+      "name": "workflow_execution_id",
+      "type": "string"
+    }
+  ]
+}

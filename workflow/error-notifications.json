@@ -1,0 +1,56 @@
+{
+  "name": "Error Notifications — Participant Template",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "218fd55a-2e3a-448e-a916-cf13af5bb5a0",
+      "name": "Production Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "REPLACE_WITH_RECRUITER_EMAIL",
+        "subject": "=n8n production error: {{ $json.workflow.name || 'Unknown workflow' }}",
+        "message": "=<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#14201d\"><h2 style=\"color:#a63d40\">Production workflow error</h2><p><strong>Workflow:</strong> {{ $json.workflow.name }}</p><p><strong>Execution:</strong> {{ $json.execution.id }}</p><p><strong>Error:</strong> {{ $json.execution.error.message }}</p><p><a href=\"{{ $json.execution.url }}\">Open failed execution in n8n</a></p></div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "02904bca-e47a-427d-a958-5baf83c4c3d1",
+      "name": "Email Recruiter About Error",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Production Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Email Recruiter About Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "nodeGroups": []
+}

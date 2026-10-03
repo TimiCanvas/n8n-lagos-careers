@@ -1,0 +1,79 @@
+{
+  "name": "Candidate Audit Retention — 90 Days — Participant Template",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        },
+        "misfirePolicy": "coalesce"
+      },
+      "id": "c85fa157-bcae-4008-bf7a-4f72aafc7dac",
+      "name": "Daily 02:00 Retention Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "candidate_decisions"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "responded_at",
+              "condition": "lt",
+              "keyValue": "={{ $now.minus({ days: 90 }).toISO() }}"
+            }
+          ]
+        },
+        "options": {
+          "dryRun": false
+        },
+        "resource": "row"
+      },
+      "id": "c84aed3e-4861-4a44-8f55-a7bd49bbaef3",
+      "name": "Delete Audit Rows Older Than 90 Days",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        304,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 02:00 Retention Check": {
+      "main": [
+        [
+          {
+            "node": "Delete Audit Rows Older Than 90 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "nodeGroups": []
+}

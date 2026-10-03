@@ -1,9 +1,9 @@
 {
-  "name": "n8n Lagos — AI-Assisted Recruitment Demo",
+  "name": "n8n Lagos Careers — Participant Template",
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const input = $json.body ?? $json;\nconst required = ['full_name', 'email', 'years_experience', 'skills', 'resume_text'];\nconst missing = required.filter((key) => input[key] === undefined || input[key] === null || String(input[key]).trim() === '');\nif (missing.length) throw new Error(`Missing required fields: ${missing.join(', ')}`);\n\nconst hasConsent =\n  input.consent === true ||\n  String(input.consent).toLowerCase() === 'true' ||\n  String(input.consent).toLowerCase() === 'on';\nif (!hasConsent) throw new Error('Consent is required');\n\nconst email = String(input.email).trim().toLowerCase();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error('Invalid email address');\nconst years = Number(input.years_experience);\nif (!Number.isFinite(years) || years < 0 || years > 50) throw new Error('Invalid years of experience');\n\nreturn [{ json: {\n  application_id: $execution.id,\n  full_name: String(input.full_name).trim().slice(0, 100),\n  email,\n  years_experience: years,\n  skills: String(input.skills).trim().slice(0, 1200),\n  resume_text: String(input.resume_text).trim().slice(0, 6000),\n  consent: true,\n  role_title: 'People Operations Analyst',\n  source: String(input.source ?? 'website'),\n  submitted_at: String(input.submitted_at ?? new Date().toISOString()),\n  must_have_criteria: [\n    'At least 2 years in HR operations, people analytics, or HRIS support',\n    'Spreadsheet or data analysis experience',\n    'Evidence of process documentation or workflow improvement',\n    'Clear written stakeholder communication',\n    'Care with confidential employee information and sound judgment about data access'\n  ],\n  nice_to_have_criteria: [\n    'HRIS or ATS administration',\n    'Workflow automation exposure',\n    'Dashboard or reporting experience'\n  ]\n} }];"
+        "jsCode": "const suppliedSecret = String($json.headers?.['x-n8n-lagos-webhook-secret'] ?? '');\nconst expectedSecret = 'REPLACE_WITH_SHARED_WEBHOOK_SECRET';\nif (expectedSecret !== 'REPLACE_WITH_SHARED_WEBHOOK_SECRET' && suppliedSecret !== expectedSecret) throw new Error('Unauthorized application submission');\n\nconst input = $json.body ?? $json;\nconst required = ['full_name', 'email', 'years_experience', 'skills', 'resume_text'];\nconst missing = required.filter((key) => input[key] === undefined || input[key] === null || String(input[key]).trim() === '');\nif (missing.length) throw new Error(`Missing required fields: ${missing.join(', ')}`);\nconst hasConsent = input.consent === true || String(input.consent).toLowerCase() === 'true' || String(input.consent).toLowerCase() === 'on';\nif (!hasConsent) throw new Error('Consent is required');\nconst email = String(input.email).trim().toLowerCase();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error('Invalid email address');\nconst years = Number(input.years_experience);\nif (!Number.isFinite(years) || years < 0 || years > 50) throw new Error('Invalid years of experience');\nreturn [{ json: {\n  application_id: $execution.id,\n  full_name: String(input.full_name).trim().slice(0, 100),\n  email,\n  years_experience: years,\n  skills: String(input.skills).trim().slice(0, 1200),\n  resume_text: String(input.resume_text).trim().slice(0, 6000),\n  consent: true,\n  role_title: 'People Operations Analyst',\n  source: String(input.source ?? 'website'),\n  submitted_at: String(input.submitted_at ?? new Date().toISOString()),\n  must_have_criteria: [\n    'At least 2 years in HR operations, people analytics, or HRIS support',\n    'Spreadsheet or data analysis experience',\n    'Evidence of process documentation or workflow improvement',\n    'Clear written stakeholder communication',\n    'Care with confidential employee information and sound judgment about data access'\n  ],\n  nice_to_have_criteria: ['HRIS or ATS administration', 'Workflow automation exposure', 'Dashboard or reporting experience']\n} }];"
       },
       "id": "8b029e56-7257-4f11-ac32-fe07f628f776",
       "name": "Validate Application",
@@ -11,7 +11,7 @@
       "typeVersion": 2,
       "position": [
         224,
-        272
+        368
       ]
     },
     {
@@ -26,8 +26,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        496,
-        272
+        816,
+        368
       ]
     },
     {
@@ -48,8 +48,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        384,
-        496
+        704,
+        592
       ]
     },
     {
@@ -61,8 +61,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        640,
-        496
+        960,
+        592
       ]
     },
     {
@@ -74,8 +74,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        832,
-        272
+        1152,
+        368
       ]
     },
     {
@@ -88,16 +88,16 @@
           "values": {
             "approvalType": "double",
             "approveLabel": "Invite to interview",
-            "disapproveLabel": "Do not advance",
-            "buttonApprovalStyle": "primary",
-            "buttonDisapprovalStyle": "secondary"
+            "disapproveLabel": "Do not advance"
           }
         },
         "options": {
-          "appendAttribution": false,
-          "messageButtonLabel": "Review application",
-          "responseFormTitle": "Candidate review",
-          "responseFormDescription": "Review the evidence summary and choose the appropriate next step."
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 48
+            }
+          },
+          "appendAttribution": false
         }
       },
       "id": "8d5e82a4-2622-459c-8004-e2c9b2c7f731",
@@ -105,7 +105,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1056,
+        1838,
         272
       ]
     },
@@ -139,7 +139,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1296,
+        2078,
         272
       ]
     },
@@ -150,16 +150,15 @@
         "message": "=<div style=\"margin:0;padding:24px;background:#f4f7f6;font-family:Arial,sans-serif;color:#14201d;\">\n  <div style=\"max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe7e3;border-radius:12px;overflow:hidden;\">\n    <div style=\"padding:20px 28px;background:#0b3b31;color:#ffffff;font-size:20px;font-weight:700;\">n8n Lagos</div>\n    <div style=\"padding:28px;line-height:1.6;font-size:16px;\">\n      <p style=\"margin:0 0 18px;\">Hello {{ String($('Validate Application').item.json.full_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }},</p>\n      <p style=\"margin:0 0 18px;\">Thank you for your application for the <strong>People Operations Analyst</strong> role.</p>\n      <p style=\"margin:0 0 18px;\">We would like to invite you to a first-round interview. A member of the People team will follow up with scheduling options.</p>\n      <p style=\"margin:28px 0 0;\">Regards,<br><strong>n8n Lagos People Team</strong></p>\n    </div>\n  </div>\n</div>",
         "options": {
           "appendAttribution": false
-        },
-        "emailType": "html"
+        }
       },
       "id": "b8d5fff0-2ae7-47e8-aee2-703c7730a89d",
       "name": "Send Interview Invite",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1568,
-        144
+        2414,
+        528
       ]
     },
     {
@@ -169,16 +168,15 @@
         "message": "=<div style=\"margin:0;padding:24px;background:#f4f7f6;font-family:Arial,sans-serif;color:#14201d;\">\n  <div style=\"max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe7e3;border-radius:12px;overflow:hidden;\">\n    <div style=\"padding:20px 28px;background:#0b3b31;color:#ffffff;font-size:20px;font-weight:700;\">n8n Lagos</div>\n    <div style=\"padding:28px;line-height:1.6;font-size:16px;\">\n      <p style=\"margin:0 0 18px;\">Hello {{ String($('Validate Application').item.json.full_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }},</p>\n      <p style=\"margin:0 0 18px;\">Thank you for the time you invested in applying for the <strong>People Operations Analyst</strong> role.</p>\n      <p style=\"margin:0 0 18px;\">After careful review, we will not be progressing your application at this time.</p>\n      <p style=\"margin:0 0 18px;\">We appreciate your interest in n8n Lagos and wish you every success in your job search.</p>\n      <p style=\"margin:28px 0 0;\">Regards,<br><strong>n8n Lagos People Team</strong></p>\n    </div>\n  </div>\n</div>",
         "options": {
           "appendAttribution": false
-        },
-        "emailType": "html"
+        }
       },
       "id": "b198f21a-2c5c-4b31-949d-5b281a140f17",
       "name": "Send Status Update",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1568,
-        384
+        2256,
+        1008
       ]
     },
     {
@@ -190,8 +188,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1824,
-        144
+        2670,
+        528
       ]
     },
     {
@@ -203,13 +201,13 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1824,
-        384
+        2512,
+        1008
       ]
     },
     {
       "parameters": {
-        "content": "## 1 · Website trigger\nThe careers page sends a multipart POST request here. The webhook responds immediately so the browser does not wait for AI or recruiter approval.\n\nAfter importing, publish the workflow and copy the **Production URL** into the frontend configuration.",
+        "content": "## 1 · Website trigger\nThe public careers page sends JSON here. The webhook responds immediately so the browser does not wait for AI or recruiter approval.\n\nAfter importing, activate the workflow and copy the **Production URL** from Receive Application.",
         "height": 250,
         "width": 430,
         "color": 5
@@ -220,12 +218,12 @@
       "typeVersion": 1,
       "position": [
         -96,
-        -112
+        -16
       ]
     },
     {
       "parameters": {
-        "content": "## 2 · Credentials\nSelect your own OpenAI credential in **OpenAI Chat Model**. Select your own Gmail credential in all three Gmail nodes.\n\nReplace `REPLACE_WITH_RECRUITER_EMAIL` in Recruiter Approval with your presenter inbox. Credentials are intentionally not included in this template.",
+        "content": "## 2 · Credentials\nSelect an OpenAI credential in **OpenAI Chat Model**. Select the same Gmail credential in all three Gmail nodes.\n",
         "height": 250,
         "width": 430,
         "color": 3
@@ -235,15 +233,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        752,
-        -112
+        1072,
+        -16
       ]
     },
     {
       "parameters": {
-        "content": "## 3 · Decision record\nThe final Code nodes produce an audit record visible in the execution. For durable production storage, add a Data Table Insert Row node after each audit node and map these output fields.",
-        "height": 230,
-        "width": 420,
+        "content": "## Audit guidance\n\n- **Purpose:** retain a minimal record showing what the AI recommended and what the recruiter ultimately decided.\n- **Audit Code nodes:** assemble a consistent record only after the applicant email succeeds.\n- **Data Table nodes:** insert the record into **candidate_decisions**.\n- **Stored fields:** application ID, role, AI score, AI recommendation, human decision, response time and execution ID.\n- **Not stored here:** candidate name, email, CV text or skills.\n- **Retention:** the separate **Candidate Audit Retention — 90 Days** workflow deletes records older than 90 days.\n- Use the execution ID to trace an audit row back to its n8n execution when investigating an issue.",
+        "height": 360,
+        "width": 520,
         "color": 4
       },
       "id": "627ae79e-09ee-44b0-90ac-f84e6dbf4aab",
@@ -251,8 +249,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1584,
-        -112
+        2464,
+        -32
       ]
     },
     {
@@ -264,11 +262,239 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -32,
-        272
+        -240,
+        560
       ],
       "id": "9bcaeef7-1798-4725-a880-9a064aabd0d7",
       "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "candidate_decisions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "application_id": "={{ $json.application_id }}",
+            "role": "={{ $json.role }}",
+            "ai_score": "={{ $json.ai_score }}",
+            "ai_recommendation": "={{ $json.ai_recommendation }}",
+            "human_decision": "={{ $json.human_decision }}",
+            "responded_at": "={{ $json.responded_at }}",
+            "workflow_execution_id": "={{ $json.workflow_execution_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "application_id",
+              "displayName": "application_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ai_score",
+              "displayName": "ai_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ai_recommendation",
+              "displayName": "ai_recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "human_decision",
+              "displayName": "human_decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "responded_at",
+              "displayName": "responded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "workflow_execution_id",
+              "displayName": "workflow_execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8f92abad-4555-44a6-acb0-5f67823fc6f5",
+      "name": "Store Invite Audit",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2926,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "candidate_decisions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "application_id": "={{ $json.application_id }}",
+            "role": "={{ $json.role }}",
+            "ai_score": "={{ $json.ai_score }}",
+            "ai_recommendation": "={{ $json.ai_recommendation }}",
+            "human_decision": "={{ $json.human_decision }}",
+            "responded_at": "={{ $json.responded_at }}",
+            "workflow_execution_id": "={{ $json.workflow_execution_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "application_id",
+              "displayName": "application_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ai_score",
+              "displayName": "ai_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ai_recommendation",
+              "displayName": "ai_recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "human_decision",
+              "displayName": "human_decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "responded_at",
+              "displayName": "responded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "workflow_execution_id",
+              "displayName": "workflow_execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8ff4ea34-fb80-47f7-b7f4-9c1d31c38c0b",
+      "name": "Store Decline Audit",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2768,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## What each node does\n\n### Trigger & intake\n- **Webhook** — receives the authenticated application from the careers website.\n- **Validate Application** — verifies the proxy secret, required fields, consent, email and experience; then adds the role criteria.\n\n### AI evidence assessment\n- **Assess Candidate** — compares candidate-provided evidence with the must-have and nice-to-have criteria.\n- **OpenAI Chat Model** — supplies the language model used for the assessment.\n- **Structured Assessment** — forces the response into score, recommendation, summary, evidence, gaps and interview questions.\n- **Validate Assessment** — clamps the score to 0–100, checks the recommendation and defaults incomplete output to REVIEW.\n\n### Human decision\n- **Recruiter Approval** — emails the review and waits up to 48 hours for the recruiter’s decision.\n- **Approved?** — routes the recruiter’s Boolean response to invite or decline.\n\n### Automated outcomes\n- **Send Interview Invite** — emails the successful applicant.\n- **Send Status Update** — emails the declined applicant.\n- **Audit Invite Decision** — assembles the minimal INVITE audit record after the email succeeds.\n- **Audit Decline Decision** — assembles the minimal DO_NOT_ADVANCE audit record after the email succeeds.\n- **Store Invite Audit** — inserts the invite record into candidate_decisions.\n- **Store Decline Audit** — inserts the decline record into candidate_decisions.\n\n### Evidence-score interpretation\n- **70–100:** strong evidence alignment; suggested ADVANCE.\n- **50–69:** mixed or incomplete evidence; suggested REVIEW.\n- **0–49:** insufficient evidence against core criteria; suggested DO_NOT_ADVANCE.\n- The score summarizes application evidence only. It is not a hiring decision; the recruiter remains accountable for the outcome.",
+        "height": 720,
+        "width": 3300,
+        "color": 7
+      },
+      "id": "486b6425-0b44-46b7-b56c-465bedcb7795",
+      "name": "Presenter Guide — Node Map",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -896
+      ]
     }
   ],
   "connections": {
@@ -388,18 +614,96 @@
           }
         ]
       ]
+    },
+    "Audit Invite Decision": {
+      "main": [
+        [
+          {
+            "node": "Store Invite Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Decline Decision": {
+      "main": [
+        [
+          {
+            "node": "Store Decline Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all"
+    "binaryMode": "separate",
+    "timeSavedPerExecution": 10
   },
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "tags": []
+  "tags": [],
+  "nodeGroups": [
+    {
+      "id": "91616349-1b6a-4cfe-809d-5eed855d1111",
+      "name": "1 · Intake & Validation",
+      "nodeNames": [
+        "Validate Application",
+        "Setup — Webhook"
+      ],
+      "description": "Validates the website submission, normalizes values and attaches the role-specific assessment criteria."
+    },
+    {
+      "id": "49e906b7-9c0c-4d6e-82b1-267a871134b4",
+      "name": "2 · AI Evidence Assessment",
+      "nodeNames": [
+        "Assess Candidate",
+        "OpenAI Chat Model",
+        "Structured Assessment",
+        "Validate Assessment",
+        "Setup — Credentials"
+      ],
+      "description": "Uses the language model and structured parser to produce a bounded, job-related evidence summary."
+    },
+    {
+      "id": "8b633d2c-bde1-47f5-8a82-a9c536acc104",
+      "name": "3 · Human Review",
+      "nodeNames": [
+        "Recruiter Approval",
+        "Approved?"
+      ],
+      "description": "Emails the recruiter, waits up to 48 hours for a decision, then routes the approved or declined outcome."
+    },
+    {
+      "id": "57adc47a-751e-4677-8d39-48af36bb0400",
+      "name": "4A · Invite Outcome",
+      "nodeNames": [
+        "Send Interview Invite",
+        "Audit Invite Decision",
+        "Store Invite Audit"
+      ],
+      "description": "Sends the interview invitation and stores a minimal, durable audit record without candidate name or email."
+    },
+    {
+      "id": "abcc1cb5-f4b8-495e-b00e-6ea81e7f061a",
+      "name": "4B · Decline Outcome",
+      "nodeNames": [
+        "Send Status Update",
+        "Audit Decline Decision",
+        "Store Decline Audit"
+      ],
+      "description": "Sends the status update and stores a minimal, durable audit record without candidate name or email."
+    },
+    {
+      "id": "23b033b5-be18-476c-ae3d-d5803c2bf1c9",
+      "name": "5 · Audit Guidance",
+      "nodeNames": [
+        "Setup — Audit"
+      ],
+      "description": "Explains the durable decision record and the remaining retention-policy choice."
+    }
+  ]
 }

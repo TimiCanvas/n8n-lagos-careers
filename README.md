@@ -6,7 +6,8 @@ A participant-ready version of the **Automating an HR Workflow with n8n** practi
 2. n8n validates and normalizes the application.
 3. An AI model produces a structured, job-related evidence summary.
 4. A recruiter reviews the summary and approves or declines.
-5. n8n sends the appropriate applicant email and records an audit output.
+5. n8n sends the appropriate applicant email and records a minimal audit row.
+6. Supporting workflows send production-error alerts and enforce 90-day audit retention.
 
 > This repository contains no API keys, OAuth tokens, credential IDs, personal inboxes, or live webhook URLs. You must connect your own services after importing it.
 
@@ -19,6 +20,9 @@ A participant-ready version of the **Automating an HR Workflow with n8n** practi
 │   └── README.md
 ├── workflow/
 │   ├── n8n-lagos-hr-workflow.json
+│   ├── error-notifications.json
+│   ├── candidate-audit-retention-90-days.json
+│   ├── candidate-decisions-table-schema.json
 │   └── README.md
 ├── sample-data/
 │   └── sample-candidates.csv
@@ -38,15 +42,18 @@ Use fictional candidate information during the workshop. Do not submit real CVs,
 
 1. Download or clone this repository.
 2. In n8n, select **Create Workflow** → **Import from File**.
-3. Import `workflow/n8n-lagos-hr-workflow.json`.
-4. Open **OpenAI Chat Model** and select your own OpenAI credential.
-5. Open all three Gmail nodes and select your own Gmail credential:
+3. Import all three workflow JSON files from `workflow/`.
+4. Create an n8n Data Table named `candidate_decisions` using `candidate-decisions-table-schema.json`.
+5. In both audit-storage nodes and the retention workflow, select that table.
+6. Open **OpenAI Chat Model** and select your own OpenAI credential.
+7. Open all three Gmail nodes and select your own Gmail credential:
    - `Recruiter Approval`
    - `Send Interview Invite`
    - `Send Status Update`
-6. In `Recruiter Approval`, replace `REPLACE_WITH_RECRUITER_EMAIL` with the reviewer's email address.
-7. Save and publish the workflow.
-8. Open the `Webhook` node and copy its **Production URL**.
+8. In `Recruiter Approval` and the error-notification workflow, replace `REPLACE_WITH_RECRUITER_EMAIL`.
+9. Publish the error workflow, then select it under the main workflow's **Error workflow** setting.
+10. Publish the retention and main workflows.
+11. Open the `Webhook` node and copy its **Production URL**.
 
 See [workflow/README.md](workflow/README.md) for the workflow map and troubleshooting notes.
 
@@ -91,8 +98,10 @@ flowchart LR
     E --> F[Recruiter approval]
     F -->|Invite| G[Interview email]
     F -->|Decline| H[Status email]
-    G --> I[Audit invite decision]
-    H --> J[Audit decline decision]
+    G --> I[Audit invite decision] --> K[(candidate_decisions)]
+    H --> J[Audit decline decision] --> K
+    L[Production failure] --> M[Error workflow] --> N[Recruiter alert]
+    O[Daily schedule] --> P[Delete audit rows older than 90 days]
 ```
 
 ## Responsible-use notes
@@ -101,7 +110,7 @@ flowchart LR
 - The prompt instructs the model to use job-related evidence only.
 - Do not infer or score protected characteristics.
 - Review the role criteria before reusing the workflow for another vacancy.
-- Add durable audit storage before using this pattern beyond a demonstration.
+- Keep the audit table minimal and apply the included 90-day retention workflow.
 - Check your organization's privacy, employment and AI-governance requirements.
 
 ## Troubleshooting
