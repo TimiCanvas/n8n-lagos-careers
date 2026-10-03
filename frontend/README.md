@@ -20,7 +20,7 @@ Then open the displayed local URL.
 
 ## Connect your n8n webhook
 
-The repository does not include the presenter's live webhook.
+The repository does not include my presenter's live webhook.
 
 Choose one method:
 
